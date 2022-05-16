@@ -41,14 +41,22 @@ from collections import deque
 from math import dist, inf
 from queue import PriorityQueue
 from this import d
-def build_path_from_parents(parents, start, end):
+def build_path_from_parents(graph, parents, start, end):
     path = []
     node = end
+    total = 0
     while node != start:
-        path.insert(0, node)
-        node = parents[node]
-    path.insert(0, start)
-    return path
+        parent = parents[node]
+        edge = graph[parent][node]
+        total += edge
+        path.insert(0, (node, edge))
+        node = parent
+    path.insert(0, (start, 'start'))
+    result = {
+        'path': path,
+        'length': total
+    }
+    return result
 
 def find_path_bfs(graph, start, end):
     """ A generator of all nodes in graph, in breadth-first order. """
@@ -64,13 +72,12 @@ def find_path_bfs(graph, start, end):
                 candidates.append(neighbor)
                 parent[neighbor] = next
                 if neighbor == end:
-                    return build_path_from_parents(parent, start, end)
+                    return build_path_from_parents(graph, parent, start, end)
     return None  # No path found
 
 import queue
 def shortest_path(graph, start, end):
     """Dijekstra shortest path."""
-    """ A generator of all nodes in graph, in breadth-first order. """
     candidates = queue.PriorityQueue()
     candidates.put((0, start))
     distances = {start: 0}
@@ -80,7 +87,7 @@ def shortest_path(graph, start, end):
         # input()
         distance, node = candidates.get()
         if distances.get(node, inf) < distance:
-            continue  # Node already filled ? Necessary?
+            continue  # Node already processed with smaller distance.
         for neighbor, edge in graph[node].items():
             new_distance = distance + edge
             old_distance = distances.get(neighbor, inf)
@@ -91,7 +98,7 @@ def shortest_path(graph, start, end):
             candidates.put((new_distance, neighbor))
             parent[neighbor] = node
             if neighbor == end:
-                return build_path_from_parents(parent, start, end)
+                return build_path_from_parents(graph, parent, start, end)
     return None  # No path found
 
 def find_cycles(graph):
