@@ -38,6 +38,16 @@ def find_path_dfs(graph, start=None, end=None, visited=None):
     return False
 
 from collections import deque
+def build_path_from_parents(parents, start, end):
+    path = []
+    node = end
+    while node != start:
+        path.insert(0, node)
+        node = parents[node]
+    path.insert(0, start)
+    return path
+
+
 def find_path_bfs(graph, start, end):
     """ A generator of all nodes in graph, in breadth-first order. """
     candidates = deque()
@@ -52,14 +62,7 @@ def find_path_bfs(graph, start, end):
                 candidates.append(neighbor)
                 parent[neighbor] = next
                 if neighbor == end:
-                    path = []
-                    node = neighbor
-                    while node != start:
-                        path.insert(0, node)
-                        node = parent[node]
-                    path.insert(0, start)
-                    return path
-
+                    return build_path_from_parents(parent, start, end)
     return None  # No path found
 
 def find_cycles(graph):
