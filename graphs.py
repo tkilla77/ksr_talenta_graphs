@@ -78,6 +78,10 @@ def find_path_bfs(graph, start, end):
 import queue
 def shortest_path(graph, start, end):
     """Dijekstra shortest path."""
+    # Candidates to process next, ordered by increasing distance.
+    # The head of the queue is guaranteed to be the next node to be visited,
+    # while the order of subsequent nodes could still be reordered if and preceding
+    # node offers a shorter path to them.
     candidates = queue.PriorityQueue()
     candidates.put((0, start))
     distances = {start: 0}
@@ -86,6 +90,8 @@ def shortest_path(graph, start, end):
         # print(distances)
         # input()
         distance, node = candidates.get()
+        if node == end:  # We're done.
+            return build_path_from_parents(graph, parent, start, end)
         if distances.get(node, inf) < distance:
             continue  # Node already processed with smaller distance.
         for neighbor, edge in graph[node].items():
@@ -93,12 +99,11 @@ def shortest_path(graph, start, end):
             old_distance = distances.get(neighbor, inf)
             if old_distance <= new_distance:
                 continue  # Neighbor already filled via some shorter path
-            # Otherwise: we found a shorter path to neighbor - record
+            # Otherwise: we found a shorter (or new) path to neighbor - record it
+            # and add to candidates.
             distances[neighbor] = new_distance
             candidates.put((new_distance, neighbor))
             parent[neighbor] = node
-            if neighbor == end:
-                return build_path_from_parents(graph, parent, start, end)
     return None  # No path found
 
 def find_cycles(graph):
