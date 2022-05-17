@@ -37,10 +37,6 @@ def find_path_dfs(graph, start=None, end=None, visited=None):
     # None of our neighbors has a path to 'end' -> give up.
     return False
 
-from collections import deque
-from math import dist, inf
-from queue import PriorityQueue
-from this import d
 def build_path_from_parents(graph, parents, start, end):
     path = []
     node = end
@@ -58,8 +54,10 @@ def build_path_from_parents(graph, parents, start, end):
     }
     return result
 
+from collections import deque
 def find_path_bfs(graph, start, end):
     """ A generator of all nodes in graph, in breadth-first order. """
+    # Deque: a double-ended list with efficient modifications at either end.
     candidates = deque()
     candidates.append(start)
     visited = {start}
@@ -75,14 +73,15 @@ def find_path_bfs(graph, start, end):
                     return build_path_from_parents(graph, parent, start, end)
     return None  # No path found
 
-import queue
+from math import inf
+from queue import PriorityQueue
 def shortest_path(graph, start, end):
     """Dijekstra shortest path."""
     # Candidates to process next, ordered by increasing distance.
     # The head of the queue is guaranteed to be the next node to be visited,
     # while the order of subsequent nodes could still be reordered if and preceding
     # node offers a shorter path to them.
-    candidates = queue.PriorityQueue()
+    candidates = PriorityQueue()
     candidates.put((0, start))
     distances = {start: 0}
     parent = {}
