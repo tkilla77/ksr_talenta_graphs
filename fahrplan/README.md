@@ -5,12 +5,12 @@ Swiss public transport stops as adjacency graph.
 Get the graph:
 
 ```py
-import fahrplan.fahrplan
-sbb = fahrplan.read_json_schedule("fahrplan/fahrplan_2022.json")
+import fahrplan
+sbb = fahrplan.latest
 ```
 
 Display some data:
-```py
+```bash
 >>> len(sbb)
 34010
 
