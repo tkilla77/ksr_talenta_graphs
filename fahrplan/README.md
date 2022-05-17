@@ -27,6 +27,9 @@ The graph only records whether two stations are directly connected with each oth
 
 So, some edges may be the consequence of special effects such as end-of-day connections, weekend night service, and the like.
 
+Also, since each edge distance is recorded in minutes from departure to arrival, concatenating multiple legs will underestimate actual travelling time, as the stop time
+is ignored.
+
 ### Source
 
 The data ist parsed from [GTFS](https://opentransportdata.swiss/de/cookbook/gtfs) data available from https://opentransportdata.swiss/de/group/timetables-gtfs
