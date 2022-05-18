@@ -76,7 +76,7 @@ def find_path_bfs(graph, start, end):
 from math import inf
 from queue import PriorityQueue
 def shortest_path(graph, start, end):
-    """Dijekstra shortest path."""
+    """Dijkstra shortest path."""
     # Candidates to process next, ordered by increasing distance.
     # The head of the queue is guaranteed to be the next node to be visited,
     # while the order of subsequent nodes could still be reordered if and preceding
