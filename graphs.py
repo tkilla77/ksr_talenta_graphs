@@ -3,7 +3,7 @@ def find_path_dfs(graph, start=None, end=None, visited=None):
        returns False otherwise.
 
        If start is None, the first node in graph is chosen.
-       If end if None, the last node in graph is chosen.
+       If end is None, the last node in graph is chosen.
     """
     # Choose first and last nodes in graph if not given.
     if start == None:
@@ -85,17 +85,22 @@ def shortest_path(graph, start, end):
     # node offers a shorter path to them.
     candidates = PriorityQueue()
     candidates.put((0, start))
+    parents = {}
+    # In addition to BFS, we record for each discovered node the currently known shortest
+    # distance from start.
     distances = {start: 0}
-    parent = {}
     while candidates:
         # print(distances)
         # print(candidates.queue)
         # input()
+        
+        # The first candidate node is guaranteed to be the closest one of the candidates.
         distance, node = candidates.get()
         if node == end:  # We're done.
-            return build_path_from_parents(graph, parent, start, end)
+            return build_path_from_parents(graph, parents, start, end)
         if distances.get(node, inf) < distance:
-            continue  # Node already processed with smaller distance.
+            continue  # Node already processed with smaller distance. See comment below.
+
         for neighbor, edge in graph[node].items():
             new_distance = distance + edge
             old_distance = distances.get(neighbor, inf)
@@ -104,8 +109,12 @@ def shortest_path(graph, start, end):
             # Otherwise: we found a shorter (or new) path to neighbor - record it
             # and add to candidates.
             distances[neighbor] = new_distance
+
+            # To be correct, we'd need to remove any old record (old_distance, neighbor) 
+            # in the candidates, but that is expensive. Instead, we leave it in and
+            # check above if distances has a shorter path recorded (line 101).
             candidates.put((new_distance, neighbor))
-            parent[neighbor] = node
+            parents[neighbor] = node
     return None  # No path found
 
 def find_cycles(graph):

@@ -1,3 +1,4 @@
+# A simple unweighted graph as adjacency matrix.
 graph1 = [
     # KSR, Sek, Bahnhofstr, Hafenstrasse, Zelgstrasse, Bahnhof
     [ False, True, False, False, False, False],  # KSR
@@ -8,6 +9,7 @@ graph1 = [
     [ False, False, True, True, True, False],  # Bahnhof
 ]
 
+# The same graph as adjacency matrix, with weights.
 graph2 = [
     # KSR, Sek, Bahnhofstr, Hafenstrasse, Zelgstrasse, Bahnhof
     [ -1, 1, -1, -1, -1, -1],  # KSR
@@ -21,6 +23,7 @@ graph2 = [
 def has_direct_connection(matrix, n1, n2):
     return matrix[n1][n2] >= 0
 
+# The same directed graph as adjacency list.
 graph3 = {
     "ksr": {"sek": 1, "weitenzelgstr": 1},
     "sek": {"bahnhofstr": 3, "hafenstr": 5, "zelgstr": 7},
@@ -31,6 +34,7 @@ graph3 = {
     "weitenzelgstr": {},
 }
 
+# Matrix version usin numpy instead.
 import numpy as np
 graph4 = np.array([
     # KSR, Sek, Bahnhofstr, Hafenstrasse, Zelgstrasse, Bahnhof
