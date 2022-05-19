@@ -38,6 +38,7 @@ def find_path_dfs(graph, start=None, end=None, visited=None):
     return False
 
 def build_path_from_parents(graph, parents, start, end):
+    """Given a parents dictionary, builds the path from start to end and records edge weights."""
     path = []
     node = end
     total = 0
@@ -56,21 +57,22 @@ def build_path_from_parents(graph, parents, start, end):
 
 from collections import deque
 def find_path_bfs(graph, start, end):
-    """ A generator of all nodes in graph, in breadth-first order. """
+    """Finds the shortest path from start to end using BFS."""
     # Deque: a double-ended list with efficient modifications at either end.
     candidates = deque()
     candidates.append(start)
-    visited = {start}
-    parent = {}
+    # Dictionary containing the parent through which each node was visited.
+    parents = {}
     while candidates:
-        next = candidates.popleft()
-        for neighbor in graph[next]:
-            if neighbor not in visited:
-                visited.add(neighbor)
+        # print(candidates)
+        # input()
+        node = candidates.popleft()
+        for neighbor in graph[node]:
+            if neighbor not in parents:
+                parents[neighbor] = node
                 candidates.append(neighbor)
-                parent[neighbor] = next
                 if neighbor == end:
-                    return build_path_from_parents(graph, parent, start, end)
+                    return build_path_from_parents(graph, parents, start, end)
     return None  # No path found
 
 from math import inf
@@ -87,6 +89,7 @@ def shortest_path(graph, start, end):
     parent = {}
     while candidates:
         # print(distances)
+        # print(candidates.queue)
         # input()
         distance, node = candidates.get()
         if node == end:  # We're done.
