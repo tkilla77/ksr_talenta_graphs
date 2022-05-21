@@ -48,7 +48,7 @@ def build_path_from_parents(graph, parents, start, end):
         total += edge
         path.insert(0, (node, edge))
         node = parent
-    path.insert(0, (start, 'start'))
+    path.insert(0, (start, 0))
     result = {
         'path': path,
         'length': total
@@ -94,25 +94,27 @@ def shortest_path(graph, start, end):
         # print(candidates.queue)
         # input()
         
-        # The first candidate node is guaranteed to be the closest one of the candidates.
+        # Let's visit the closest node not yet visited. The first candidate node is
+        # guaranteed to be the closest one of the candidates.
         distance, node = candidates.get()
         if node == end:  # We're done.
             return build_path_from_parents(graph, parents, start, end)
         if distances.get(node, inf) < distance:
-            continue  # Node already processed with smaller distance. See comment below.
+            continue  # Node already visited with smaller distance. See comment below.
 
         for neighbor, edge in graph[node].items():
             new_distance = distance + edge
             old_distance = distances.get(neighbor, inf)
             if old_distance <= new_distance:
-                continue  # Neighbor already filled via some shorter path
-            # Otherwise: we found a shorter (or new) path to neighbor - record it
+                continue  # Neighbor already discovered via some shorter path
+            # Otherwise: we discovered a shorter (or new) path to neighbor - record it
             # and add to candidates.
             distances[neighbor] = new_distance
 
             # To be correct, we'd need to remove any old record (old_distance, neighbor) 
             # in the candidates, but that is expensive. Instead, we leave it in and
-            # check above if distances has a shorter path recorded (line 101).
+            # rely on the fact that the neighbor will be visited only once through the shortest
+            # path.
             candidates.put((new_distance, neighbor))
             parents[neighbor] = node
     return None  # No path found

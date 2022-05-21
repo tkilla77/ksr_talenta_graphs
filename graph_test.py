@@ -52,3 +52,15 @@ def has_direct_connection(matrix, n1, n2):
 
 def has_direct_connection2(matrix, n1, n2):
     return matrix[n2,n1] >= 0
+
+graph5 = {
+    "ksr": {"turnhalle": 1, "weitenzelgstr": 1, "sek": 2},
+    "turnhalle": {},
+    "weitenzelgstr": {"bahnhofstr": 8},
+    "sek": {"bahnhofstr": 3, "hafenstr": 5, "zelgstr": 7},
+    "bahnhofstr": {"bahnhof": 7, "ksr": 4},
+    "hafenstr": {"bahnhof": 4},
+    "zelgstr": {"bahnhof": 5},
+    "bahnhof": {},
+}
+
