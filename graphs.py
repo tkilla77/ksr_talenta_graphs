@@ -185,13 +185,13 @@ def dfs(graph, node, visited=None):
 
 def bfs(graph, start):
     """ A generator of all nodes in graph, in breadth-first order. """
-    candidates = {start}
-    visited = {start}
+    candidates = [start]
+    visited = set()
     while candidates:
-        next = candidates.pop()
+        next = candidates.pop(0)
+        if next in visited:
+            continue
+        visited.add(next)
         yield next
-        for neighbor in graph[next]:
-            if neighbor not in visited:
-                visited.add(neighbor)
-                candidates.add(neighbor)
+        candidates.extend(graph[next])
 
