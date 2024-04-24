@@ -60,7 +60,9 @@ graph5 = {
     "sek": {"bahnhofstr": 3, "hafenstr": 5, "zelgstr": 7},
     "bahnhofstr": {"bahnhof": 7, "ksr": 4},
     "hafenstr": {"bahnhof": 4},
-    "zelgstr": {"bahnhof": 5},
+    "zelgstr": {"bahnhof": 5},  
     "bahnhof": {},
 }
 
+from graphs import *
+for node in bfs(graph5, "ksr"): print(node)
