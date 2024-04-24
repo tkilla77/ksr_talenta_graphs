@@ -195,3 +195,32 @@ def bfs(graph, start):
         yield next
         candidates.extend(graph[next])
 
+def walk_tree(node):
+    if node is None:
+        return
+    yield from walk_tree(node.left)
+    yield node
+    yield from walk_tree(node.right)
+
+
+import graphviz
+
+def render_tree(dot, graph, node, visited=None):
+    """Renders the tree in graphviz."""    
+    visited = visited or set()
+    id = str(node)
+    if node in visited:
+        return id
+    visited.add(id)
+    dot.node(id, f"< <B>{id}</B>  >", shape='circle')
+    for neighbor, value in graph[node].items():
+        child = render_tree(dot, graph, neighbor, visited)
+        dot.edge(id, child, label=f'{value}')
+    return id
+
+def draw_graph(graph, title="Graph"):
+    """Returns a graphviz rendering of graph."""
+    dot = graphviz.Digraph(title)
+    render_tree(dot, graph, next(iter(graph)))
+    return dot
+
