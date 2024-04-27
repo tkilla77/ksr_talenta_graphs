@@ -47,10 +47,8 @@ graph4 = np.array([
     ]
 )
 
-def has_direct_connection(matrix, n1, n2):
-    return matrix[n2][n1] >= 0
-
 def has_direct_connection2(matrix, n1, n2):
+    # Only works with numpy.
     return matrix[n2,n1] >= 0
 
 graph5 = {
