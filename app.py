@@ -14,13 +14,16 @@ def query():
     dest = request.args.get('to')
     algo = request.args.get('algo')
 
-    if "Dijkstra" == algo:
-        result = graphs.shortest_path(fahrplan.latest, source, dest)
-    elif "DFS" == algo:
-        result = graphs.dfs(fahrplan.latest, source, dest)
-    elif "BFS" == algo:
-        result = graphs.bfs(fahrplan.latest, source, dest)
-    else:
-        return "Unknown Algorithm", 404
+    try:
+        if "Dijkstra" == algo:
+            result = graphs.shortest_path(fahrplan.latest, source, dest)
+        elif "DFS" == algo:
+            result = graphs.find_path_dfs(fahrplan.latest, source, dest)
+        elif "BFS" == algo:
+            result = graphs.find_path_bfs(fahrplan.latest, source, dest)
+        else:
+            return "Unknown Algorithm", 404
+    except Exception as e:
+        return repr(e), 404
 
     return result

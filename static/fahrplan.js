@@ -7,13 +7,18 @@ async function search(event) {
     let url = "/query?" + params
 
     const response = await fetch(url);
-    let results = document.querySelector('#status')
+    let status = document.querySelector('#status')
+    let route = document.querySelector('#stops')
     if (!response.ok) {
-        results.innerText = `No response from server: ${response.statusText}`
+        route.innerHTML = ""
+        let text = await response.text()
+        status.innerText = `No response from server: ${response.statusText}, ${text}`
         return
     }
-    results.innerText = `${response.statusText}`
+    status.innerText = `${response.statusText}`
+    let stops = await response.text()
 
+    route.innerText = stops.toString()
 }
 
 document.querySelector('#query').addEventListener("submit", search)

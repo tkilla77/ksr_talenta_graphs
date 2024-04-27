@@ -38,4 +38,5 @@ div#route {
 div#status {
     font-family: monospace;
     font-size: small;
+    margin: 1em 0;
 }
