@@ -18,7 +18,9 @@ def query():
         if "Dijkstra" == algo:
             result = graphs.shortest_path(fahrplan.latest, source, dest)
         elif "DFS" == algo:
+            # Match JSON format returned by shortest_path and BFS...
             result = graphs.find_path_dfs(fahrplan.latest, source, dest)
+            result = { 'length': len(result), 'path': [(stop, '?') for stop in result]}
         elif "BFS" == algo:
             result = graphs.find_path_bfs(fahrplan.latest, source, dest)
         else:
