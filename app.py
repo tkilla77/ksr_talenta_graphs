@@ -1,8 +1,12 @@
 from flask import Flask, redirect, url_for, request, jsonify
 import graphs
 import fahrplan
+import sys
+
+sys.setrecursionlimit(1000)
 
 app = Flask(__name__)
+
 
 @app.route("/")
 def index():
