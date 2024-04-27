@@ -40,3 +40,17 @@ div#status {
     font-size: small;
     margin: 1em 0;
 }
+
+div#stops {
+    display:flex;
+    flex-direction: column;
+}
+
+my-stop {
+    margin-top: 0.5em;
+    display:list-item;
+    list-style: none ;
+}
+my-stop::before {
+    content: '▶ ';
+  }
