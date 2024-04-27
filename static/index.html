@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Fahrplan</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' href='style.css'>
+    <script src='fahrplan.js' type='module'></script>
+</head>
+<body>
+    <h1>Fahrplan Abfrage</h1>
+    <form id="query">
+        <datalist id="stops">
+            <option value="Romanshorn"></option>
+            <option value="Lugano"></option>
+        </datalist>
+        <label for="from">Von</label>
+        <input list="stops" type="text" name="from" placeholder="Romanshorn" title="Abfahrtsort">
+        <label for="to">Nach</label>
+        <input list="stops" type="text" name="to" placeholder="Rorschach" title="Ankunftsort">
+        <label for="algo">Algorithmus</label>
+        <input list="algos" type="text" name="algo" value="Dijkstra" title="Such-Algorithmus">
+        <datalist id="algos">
+            <option value="Dijkstra"></option>
+            <option value="DFS"></option>
+            <option value="BFS"></option>
+        </datalist>
+        <input name="search" type="submit" value="Suchen">
+    </form>
+
+    <div id="route"></div>
+</body>
+</html>
