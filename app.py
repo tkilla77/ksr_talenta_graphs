@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, request
+from flask import Flask, redirect, url_for, request, jsonify
 import graphs
 import fahrplan
 
@@ -27,3 +27,7 @@ def query():
         return repr(e), 404
 
     return result
+
+@app.route("/allstops")
+def allstops():
+    return jsonify(list(fahrplan.latest.keys()))

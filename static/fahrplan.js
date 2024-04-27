@@ -9,7 +9,7 @@ async function search(event) {
     // send user data to server
     let params = new URLSearchParams(data)
     let url = "/query?" + params
-    const response = await fetch(url);
+    const response = await fetch(url)
 
     // update our own URL params to make a nice perma-URL
     let location = new URL(window.location.href)
@@ -37,6 +37,8 @@ async function search(event) {
 
 document.querySelector('#query').addEventListener("submit", search)
 
+// Read our own URL params and update the form accordingly
+// Also run a search if both from and to are given.
 let params = new URLSearchParams(window.location.search)
 if (params) {
     let from = params.get("from")
@@ -55,3 +57,23 @@ if (params) {
         search()
     }
 }
+
+async function updateStops() {
+    // Read the set of possible stops to populate the suggestions
+    let url = "/allstops"
+    const response = await fetch(url)
+    if (response.ok) {
+        const stops = await response.json()
+        let list = document.querySelector('#stops-list')
+        list.innerHTML = ''
+        for (let stop of stops) {
+            let option = document.createElement('option')
+            option.value = stop
+            list.appendChild(option)
+        }
+    } else {
+        console.log(response)
+    }
+}
+
+updateStops()
