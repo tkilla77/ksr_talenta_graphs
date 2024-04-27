@@ -3,10 +3,10 @@ async function search(event) {
     let data = new FormData(this)
     console.log(data)
 
-    const response = await fetch("query", {
-        method: "POST",
-        body: data,
-    });
+    let params = new URLSearchParams(data)
+    let url = "/query?" + params
+
+    const response = await fetch(url);
     let results = document.querySelector('#status')
     if (!response.ok) {
         results.innerText = `No response from server: ${response.statusText}`
