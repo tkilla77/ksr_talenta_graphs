@@ -19,12 +19,11 @@
         <label for="to">Nach</label>
         <input list="stops-list" type="text" id="to" name="to" placeholder="Rorschach" title="Ankunftsort">
         <label for="algo">Algorithmus</label>
-        <datalist id="algos-list">
-            <option value="Dijkstra"></option>
-            <option value="DFS"></option>
-            <option value="BFS"></option>
-        </datalist>
-        <input list="algos-list" type="text" id="algo" name="algo" value="Dijkstra" title="Such-Algorithmus">
+        <select list="algos-list" type="text" id="algo" name="algo" value="Dijkstra" title="Such-Algorithmus">
+            <option value="Dijkstra">Dijkstra</option>
+            <option value="DFS">DFS</option>
+            <option value="BFS">BFS</option>
+        </select>
         <input type="submit" value="Suchen">
     </form>
 
