@@ -30,3 +30,12 @@ form {
 input {
     grid-column-end: -1;
 }
+
+div#route {
+    margin: 2em 0;
+}
+
+div#status {
+    font-family: monospace;
+    font-size: small;
+}

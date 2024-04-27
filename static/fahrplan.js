@@ -7,12 +7,13 @@ async function search(event) {
         method: "POST",
         body: data,
     });
+    let results = document.querySelector('#status')
     if (!response.ok) {
-        let results = document.querySelector('#route')
         results.innerText = `No response from server: ${response.statusText}`
         return
     }
-    
+    results.innerText = `${response.statusText}`
+
 }
 
 document.querySelector('#query').addEventListener("submit", search)
