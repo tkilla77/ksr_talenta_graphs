@@ -22,8 +22,8 @@ async function search(event) {
     let status = document.querySelector('#status')
     let route = document.querySelector('#stops')
     if (response.ok) {
-        status.innerText = `${response.statusText}`
         let routeInfo = await response.json()
+        status.innerText = `${response.statusText}, duration: ${routeInfo.duration.toPrecision(2)}s`
         route.innerText = `Die Fahrzeit von ${params.get('from')} nach ${params.get('to')} beträgt ${routeInfo.length} Minuten.`
         for (let stop of routeInfo.path) {
             route.innerHTML += `<my-stop>${stop[0]}: ${stop[1]}m</my-stop>`

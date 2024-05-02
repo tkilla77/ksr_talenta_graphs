@@ -1,7 +1,7 @@
 from flask import Flask, redirect, url_for, request, jsonify
 import graphs
 import fahrplan
-import sys
+import sys, time
 
 sys.setrecursionlimit(1000)
 
@@ -18,6 +18,7 @@ def query():
     dest = request.args.get('to')
     algo = request.args.get('algo')
 
+    start = time.perf_counter()
     try:
         if "Dijkstra" == algo:
             result = graphs.shortest_path(fahrplan.latest, source, dest)
@@ -32,6 +33,8 @@ def query():
     except Exception as e:
         return repr(e), 404
 
+    elapsed = time.perf_counter() - start
+    result['duration'] = elapsed
     return result
 
 @app.route("/allstops")
