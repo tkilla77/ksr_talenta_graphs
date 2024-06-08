@@ -17,13 +17,13 @@ body {
     box-shadow: 0em 0em 0.5em 0.5em darkslategray;
 }
 
-form {
+#query {
     display: grid;
     gap: 0.5em;
     grid-template-columns: 1fr 2fr;
 }
 @media screen and (max-width: 400px) {
-    form {
+    #query {
         grid-template-columns: 1fr;
     }
 }
@@ -31,18 +31,18 @@ input {
     grid-column-end: -1;
 }
 
-div#route {
+#route {
     margin: 2em 0;
     overflow-y: scroll;
 }
 
-div#status {
+#status {
     font-family: monospace;
     font-size: small;
     margin: 1em 0;
 }
 
-div#stops {
+#stops {
     display:flex;
     flex-direction: column;
 }
@@ -54,4 +54,4 @@ my-stop {
 }
 my-stop::before {
     content: '▶ ';
-  }
+}

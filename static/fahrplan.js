@@ -4,14 +4,18 @@ async function search(event) {
 
     // get user choice from the form
     let form = document.querySelector('#query')
-    let data = new FormData(form)
 
+    let params = new URLSearchParams()
+    params.set('from', form.querySelector('#from').value)
+    params.set('to', form.querySelector('#to').value)
+    params.set('algo', form.querySelector('#algo').value)
+    
     // send user data to server
-    let params = new URLSearchParams(data)
     let url = "/query?" + params
     const response = await fetch(url)
 
     // update our own URL params to make a nice perma-URL
+    // see https://stackoverflow.com/questions/3338642/updating-address-bar-with-new-url-without-hash-or-reloading-the-page
     let location = new URL(window.location.href)
     for (let param of params) {
         location.searchParams.set(param[0], param[1])
@@ -35,7 +39,7 @@ async function search(event) {
     }
 }
 
-document.querySelector('#query').addEventListener("submit", search)
+document.querySelector('#search').addEventListener("click", search)
 
 // Read our own URL params and update the form accordingly
 // Also run a search if both from and to are given.

@@ -9,7 +9,7 @@
 </head>
 <body>
     <h1>Fahrplan Abfrage</h1>
-    <form id="query">
+    <div id="query">
         <datalist id="stops-list">
             <option value="Romanshorn"></option>
             <option value="Lugano"></option>
@@ -24,8 +24,8 @@
             <option value="DFS">DFS</option>
             <option value="BFS">BFS</option>
         </select>
-        <input type="submit" value="Suchen">
-    </form>
+        <input id="search" type="submit" value="Suchen">
+    </div>
 
     <div id="route">
         <div id="stops"></div>
