@@ -30,36 +30,37 @@ def update_graph(graph, source, destination, minutes):
     # Add destination to graph to ensure all stops are included.
     graph.setdefault(destination.name, {})
 
-def read_stops(path):
+def read_stops(path, identity='id'):
     stops = {}
     with open(os.path.join(path, 'stops.txt'), mode='r', encoding='utf-8-sig') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             stop = Stop(row)
-            stops[stop.id] = stop
+            stops[stop.__getattribute__(identity)] = stop
     return stops
 
 def read_stop_times(path, stops, graph, max_stops=None):
     with open(os.path.join(path, 'stop_times.txt'), mode='r', encoding='utf-8-sig') as csvfile:
         reader = csv.DictReader(csvfile)
-        last_trip = None
-        last_departure = None
-        last_stop = None
+        trip = None
+        departure = None
+        origin = None
         count = 0
         for row in reader:
             # Our next stop.
             destination = stops[row['stop_id']]
+            current_trip = row['trip_id']
 
             # If stop is on the same trip as the previous stop, record
             # a direct non-stop edge [previous_stop -> destination]
-            if row['trip_id'] == last_trip:
+            if current_trip == trip:
                 arrival = parse_time_to_minutes(row['arrival_time'])
-                duration_minutes = arrival - last_departure
-                update_graph(graph, last_stop, destination, duration_minutes)
+                duration_minutes = arrival - departure
+                update_graph(graph, origin, destination, duration_minutes)
             
-            last_trip = row['trip_id']
-            last_departure = parse_time_to_minutes(row['departure_time'])
-            last_stop = destination
+            trip = current_trip
+            departure = parse_time_to_minutes(row['departure_time'])
+            origin = destination
 
             count += 1
             if max_stops and count > max_stops: break
