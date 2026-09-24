@@ -71,10 +71,13 @@ def read_transfers(path, stops, graph):
     with open(os.path.join(path, 'transfers.txt'), mode='r', encoding='utf-8-sig') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            source = stops[row['from_stop_id']]
-            destination = stops[row['to_stop_id']]
-            minutes = int(int(row['min_transfer_time']) // 60)
-            update_graph(graph, source, destination, minutes)
+            try:
+                source = stops[row['from_stop_id']]
+                destination = stops[row['to_stop_id']]
+                minutes = int(int(row['min_transfer_time']) // 60)
+                update_graph(graph, source, destination, minutes)
+            except BaseException as e:
+                print(f"Unable to update {source.name}>{destination.name} with transfer time {row['min_transfer_time']}", e)
 
 def read_gtfs(path):
     """Reads GTFS schedule data and returns the stops graph as adjacency list.
