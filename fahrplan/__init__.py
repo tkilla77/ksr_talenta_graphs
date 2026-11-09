@@ -4,4 +4,5 @@ import os
 fahrplan_2022 = gtfs_reader.read_json_schedule(os.path.join(__path__[0], "./fahrplan_2022.json"))
 fahrplan_2024 = gtfs_reader.read_json_schedule(os.path.join(__path__[0], "./fahrplan_2024.json"))
 fahrplan_2025 = gtfs_reader.read_json_schedule(os.path.join(__path__[0], "./fahrplan_2025.json"))
-latest = fahrplan_2025
+fahrplan_2026 = gtfs_reader.read_json_schedule(os.path.join(__path__[0], "./fahrplan_2026.json"))
+latest = fahrplan_2026

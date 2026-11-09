@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph Algorithm Player</title>
+<!--
+  Step-by-step visualization of graph algorithms (DFS, BFS, Dijkstra), meant to be iframed.
+  Author: Tom Hofmann <tom@scheidweg.net>
+
+  URL parameters (query string or hash):
+    graph   DOT source (digraph/graph) or a Python dict-of-dicts adjacency list. Alias: dot
+    src     URL of a file containing the graph (must allow CORS), instead of graph
+    algo    dfs | bfs | dijkstra                       (default: dfs)
+    start   start node                                 (default: first node)
+    end     target node; omit for a full traversal
+    theme   auto | light | dark                        (default: auto)
+    accent  accent color as hex, e.g. accent=e8590c
+    bg      background color as hex (default: transparent)
+    lang    de | en                                    (default: browser language)
+    speed   milliseconds per step when playing         (default: 900)
+    autoplay=1, legend=0, editlink=0, edit=1
+  Without graph/src, an editor is shown that generates embed URLs.
+  Edge weights (Dijkstra) are taken from numeric edge labels: a -> b [label=3]
+-->
+<script src="https://cdn.jsdelivr.net/npm/@viz-js/viz@3.4.0/lib/viz-standalone.js"></script>
+<style>
+:root {
+  --fg: #1f2328; --muted: #8c959f; --accent: #2f6feb; --on-accent: #ffffff;
+  --path: #d9480f; --on-path: #ffffff; --panel: color-mix(in srgb, var(--fg) 6%, transparent);
+  --bg: transparent;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fg: #e6edf3; --muted: #7d8590; --accent: #58a6ff; --on-accent: #0d1117;
+    --path: #ffa657; --on-path: #0d1117;
+  }
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fg: #e6edf3; --muted: #7d8590; --accent: #58a6ff; --on-accent: #0d1117;
+  --path: #ffa657; --on-path: #0d1117;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+/* ---- viewer ---- */
+.viewer { height: 100%; display: flex; flex-direction: column; gap: 6px; padding: 6px; min-height: 0; }
+.stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.stage svg { width: 100%; height: 100%; overflow: visible; }
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); min-height: 22px; }
+.bar a { color: var(--muted); display: grid; place-items: center; width: 24px; height: 22px; border-radius: 4px; }
+.bar a:hover, .bar a:focus-visible { color: var(--accent); background: var(--panel); outline: none; }
+.bar svg { width: 15px; height: 15px; fill: currentColor; }
+.msg { min-height: 2.8em; }
+.err { color: var(--path); white-space: pre-wrap; }
+.panels { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.panel { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.panel > b { font-weight: 600; color: var(--muted); min-width: 9em; }
+.chip { padding: 0 6px; border-radius: 4px; background: var(--panel); font-variant-numeric: tabular-nums; }
+.chip.dim { color: var(--muted); text-decoration: line-through; }
+.chip.top { outline: 1.5px solid var(--accent); }
+.empty { color: var(--muted); }
+.controls { display: flex; align-items: center; gap: 4px; }
+.controls button { border: 0; background: var(--panel); color: var(--fg); border-radius: 6px;
+  width: 32px; height: 28px; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.controls button:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.controls button:focus-visible { outline: 2px solid var(--accent); }
+.controls svg { width: 20px; height: 20px; fill: currentColor; }
+.controls input[type=range] { flex: 1; min-width: 60px; accent-color: var(--accent); }
+.counter { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+.legend { display: flex; gap: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  margin-right: 4px; vertical-align: -1px; border: 1.5px solid var(--fg); }
+.legend .l-frontier::before { border: 1.5px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.legend .l-current::before { background: var(--accent); border-color: var(--accent); }
+.legend .l-visited::before { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.legend .l-path::before { background: var(--path); border-color: var(--path); }
+
+/* ---- graphviz svg ---- */
+.stage .graph > polygon { fill: transparent; stroke: none; }
+.stage text { fill: var(--fg); }
+.stage .cluster > polygon { fill: transparent; stroke: var(--muted); }
+.stage .node > :is(ellipse, polygon, path) { fill: transparent; stroke: var(--fg); stroke-width: 1.5;
+  transition: fill .25s, stroke .25s; }
+.stage .edge > path { stroke: var(--muted); stroke-width: 1.3; transition: stroke .25s; }
+.stage .edge > polygon { fill: var(--muted); stroke: var(--muted); }
+.stage .edge > text { fill: var(--muted); }
+
+.stage .node.is-start > :is(ellipse, polygon, path), .stage .node.is-end > :is(ellipse, polygon, path) { stroke-width: 3; }
+.stage .node.s-frontier > :is(ellipse, polygon, path) { stroke: var(--accent); stroke-dasharray: 4 3;
+  fill: color-mix(in srgb, var(--accent) 12%, transparent); }
+.stage .node.s-current > :is(ellipse, polygon, path) { fill: var(--accent); stroke: var(--accent); }
+.stage .node.s-current > text { fill: var(--on-accent); }
+.stage .node.s-visited > :is(ellipse, polygon, path) { fill: color-mix(in srgb, var(--accent) 30%, transparent); }
+.stage .node.s-path > :is(ellipse, polygon, path) { fill: var(--path); stroke: var(--path); }
+.stage .node.s-path > text { fill: var(--on-path); }
+.stage .node > text.dist { fill: var(--accent) !important; font-weight: 700; font-size: 12px; }
+
+.stage .edge.e-tree > path { stroke: var(--accent); stroke-width: 2.2; }
+.stage .edge.e-tree > polygon { fill: var(--accent); stroke: var(--accent); }
+.stage .edge.e-active > path { stroke: var(--accent); stroke-width: 3.5; }
+.stage .edge.e-active > polygon { fill: var(--accent); stroke: var(--accent); }
+.stage .edge.e-active > text { fill: var(--accent); font-weight: 700; }
+.stage .edge.e-reject > path { stroke-dasharray: 3 4; }
+.stage .edge.e-path > path { stroke: var(--path); stroke-width: 3.5; }
+.stage .edge.e-path > polygon { fill: var(--path); stroke: var(--path); }
+
+/* ---- editor ---- */
+.editor { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 16px; padding: 16px; height: 100%; }
+.editor form { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.editor h1 { font-size: 18px; margin: 0 0 4px; }
+.editor label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.editor .row { display: flex; gap: 8px; } .editor .row > * { flex: 1; min-width: 0; }
+.editor textarea, .editor input, .editor select { font: inherit; color: var(--fg); background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--fg) 20%, transparent); border-radius: 6px; padding: 4px 6px; }
+.editor textarea#gsrc { font-family: ui-monospace, Menlo, monospace; font-size: 12px; min-height: 200px; flex: 1; resize: vertical; }
+.editor form button { font: inherit; border: 0; border-radius: 6px; padding: 4px 10px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.editor .preview { border: 1px dashed color-mix(in srgb, var(--fg) 25%, transparent); border-radius: 8px; min-height: 420px; min-width: 0; }
+@media (max-width: 720px) { .editor { grid-template-columns: 1fr; height: auto; } .editor .preview { height: 480px; } }
+</style>
+</head>
+<body>
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- params & i18n
+const P = new URLSearchParams(location.search);
+new URLSearchParams(location.hash.slice(1)).forEach((v, k) => P.set(k, v));
+
+const MSG = {
+  de: {
+    start: "Start bei {0}.",
+    dfsVisit: "Besuche {0}.",
+    dfsDescend: "Nachbar {1} von {0} ist unbesucht → rekursiver Aufruf.",
+    dfsSeen: "Nachbar {1} von {0} wurde schon besucht → überspringen.",
+    dfsReturn: "Alle Nachbarn von {0} erledigt → zurück zu {1}.",
+    dfsLast: "Alle Nachbarn von {0} erledigt.",
+    bfsVisit: "{0} vorne aus der Warteschlange nehmen und besuchen.",
+    bfsSkip: "{0} vorne aus der Warteschlange: schon besucht → überspringen.",
+    bfsPush: "Unbesuchte Nachbarn von {0} hinten anfügen: {1}.",
+    bfsNone: "{0} hat keine unbesuchten Nachbarn.",
+    dijVisit: "{0} hat die kleinste Distanz ({1}) → besuchen.",
+    dijStale: "Veralteter Eintrag ({1}, {0}) → überspringen.",
+    dijBetter: "{0}→{1}: {2} + {3} = {4} ist kürzer als {5} → Distanz von {1} aktualisieren.",
+    dijWorse: "{0}→{1}: {2} + {3} = {4} ist nicht kürzer als {5}.",
+    found: "Ziel {0} erreicht! Pfad: {1}",
+    foundLen: "Ziel {0} erreicht! Pfad: {1} (Länge {2})",
+    notFound: "Kein Pfad von {0} nach {1}.",
+    done: "Fertig. Besuchsreihenfolge: {0}",
+    noStart: "Startknoten „{0}“ existiert nicht.",
+    noEnd: "Zielknoten „{0}“ existiert nicht.",
+    callstack: "Aufrufstapel", queue: "Warteschlange", pq: "Prioritätswarteschlange", seq: "Besucht",
+    current: "aktuell", frontier: "entdeckt", visited: "besucht", path: "Pfad",
+    first: "Zum Anfang", prev: "Schritt zurück", play: "Abspielen / Pause", next: "Schritt vor", last: "Zum Ende",
+    dfs: "Tiefensuche (DFS)", bfs: "Breitensuche (BFS)", dijkstra: "Dijkstra",
+    edit: "Im Editor öffnen",
+    eGraph: "Graph (DOT oder Python-Dict)", eAlgo: "Algorithmus", eStart: "Start", eEnd: "Ziel",
+    eTheme: "Theme", eLang: "Sprache", eBrowser: "Browser", eSpeed: "ms pro Schritt", eHeight: "iframe-Höhe",
+    copyUrl: "Link kopieren", copyIframe: "iframe kopieren", open: "Öffnen", copied: "✓ kopiert",
+  },
+  en: {
+    start: "Start at {0}.",
+    dfsVisit: "Visit {0}.",
+    dfsDescend: "Neighbor {1} of {0} is unvisited → recursive call.",
+    dfsSeen: "Neighbor {1} of {0} was already visited → skip.",
+    dfsReturn: "All neighbors of {0} done → return to {1}.",
+    dfsLast: "All neighbors of {0} done.",
+    bfsVisit: "Take {0} from the front of the queue and visit it.",
+    bfsSkip: "{0} from the front of the queue: already visited → skip.",
+    bfsPush: "Append unvisited neighbors of {0}: {1}.",
+    bfsNone: "{0} has no unvisited neighbors.",
+    dijVisit: "{0} has the smallest distance ({1}) → visit.",
+    dijStale: "Stale entry ({1}, {0}) → skip.",
+    dijBetter: "{0}→{1}: {2} + {3} = {4} is shorter than {5} → update distance of {1}.",
+    dijWorse: "{0}→{1}: {2} + {3} = {4} is not shorter than {5}.",
+    found: "Reached {0}! Path: {1}",
+    foundLen: "Reached {0}! Path: {1} (length {2})",
+    notFound: "No path from {0} to {1}.",
+    done: "Done. Visiting order: {0}",
+    noStart: "Start node “{0}” does not exist.",
+    noEnd: "End node “{0}” does not exist.",
+    callstack: "Call stack", queue: "Queue", pq: "Priority queue", seq: "Visited",
+    current: "current", frontier: "discovered", visited: "visited", path: "path",
+    first: "First step", prev: "Step back", play: "Play / pause", next: "Step forward", last: "Last step",
+    dfs: "Depth-first search (DFS)", bfs: "Breadth-first search (BFS)", dijkstra: "Dijkstra",
+    edit: "Open in editor",
+    eGraph: "Graph (DOT or Python dict)", eAlgo: "Algorithm", eStart: "Start", eEnd: "End",
+    eTheme: "Theme", eLang: "Language", eBrowser: "Browser", eSpeed: "ms per step", eHeight: "iframe height",
+    copyUrl: "Copy link", copyIframe: "Copy iframe", open: "Open", copied: "✓ copied",
+  },
+};
+const browserLang = (navigator.languages || [navigator.language]).map((l) => l.slice(0, 2)).find((l) => MSG[l]) || "en";
+const pickLang = (l) => (MSG[l] ? l : browserLang);
+let lang = pickLang(P.get("lang"));
+const t = (key, ...args) => MSG[lang][key].replace(/\{(\d)\}/g, (_, i) => args[i]);
+const arrow = (path) => path.join(" → ");
+
+function applyTheme(theme, accent, bg) {
+  const root = document.documentElement;
+  if (theme === "light" || theme === "dark") root.dataset.theme = theme; else delete root.dataset.theme;
+  const hex = (c) => /^[0-9a-f]{3,8}$/i.test(c || "") ? "#" + c : null;
+  if (hex(accent)) root.style.setProperty("--accent", hex(accent)); else root.style.removeProperty("--accent");
+  if (hex(bg)) root.style.setProperty("--bg", hex(bg));
+}
+// Host pages with a theme toggle can switch us: iframe.contentWindow.postMessage({theme: "dark"}, "*")
+addEventListener("message", (e) => { if (e.data && e.data.theme) applyTheme(e.data.theme, e.data.accent); });
+
+// ---------------------------------------------------------------- graph input
+/** Accepts DOT, or a Python/JSON dict-of-dicts ({"a": {"b": 3}}) or dict-of-lists adjacency list. */
+function toDot(text) {
+  const s = text.trim();
+  if (!/^(\w+\s*=\s*)?\{/.test(s)) return s;
+  const json = s.replace(/^\w+\s*=\s*/, "").replace(/#[^\n"']*$/gm, "").replace(/'/g, '"')
+    .replace(/,(\s*[}\]])/g, "$1").replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false");
+  const g = JSON.parse(json);
+  const q = (x) => JSON.stringify(String(x));
+  const lines = ["digraph {"];
+  for (const [u, nbrs] of Object.entries(g)) {
+    lines.push(`  ${q(u)};`);
+    if (Array.isArray(nbrs)) for (const v of nbrs) lines.push(`  ${q(u)} -> ${q(v)};`);
+    else for (const [v, w] of Object.entries(nbrs)) lines.push(`  ${q(u)} -> ${q(v)} [label=${q(w)}];`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+
+let vizPromise;
+function getViz() { return vizPromise ||= Viz.instance(); }
+
+const FONT = "Helvetica,Arial,sans-serif";
+async function layout(dotText) {
+  const viz = await getViz();
+  const opts = { graphAttributes: { fontname: FONT, bgcolor: "transparent" },
+                 nodeAttributes: { fontname: FONT }, edgeAttributes: { fontname: FONT } };
+  const svg = viz.renderSVGElement(dotText, opts);
+  // The model is read back from the svg itself, so the algorithm and the drawing always agree.
+  // Graphviz numbers svg ids (node1, edge1, ...) in declaration order, which also gives the
+  // neighbor order (like the insertion order of a Python dict).
+  const bySeq = (sel, prefix) => [...svg.querySelectorAll(sel)]
+    .map((g) => [+(new RegExp(`^${prefix}(\\d+)$`).exec(g.id) || [])[1], g])
+    .filter(([n]) => Number.isFinite(n)).sort((a, b) => a[0] - b[0]).map(([, g]) => g);
+  const nodeEls = new Map(bySeq("g.node", "node").map((g) => [g.querySelector("title").textContent, g]));
+  const names = [...nodeEls.keys()];
+  const adj = new Map(names.map((n) => [n, []]));
+  const edgeEls = [];
+  for (const g of bySeq("g.edge", "edge")) {
+    const ends = splitEdgeTitle(g.querySelector("title").textContent, nodeEls);
+    if (!ends) continue;
+    const [u, v, directed] = ends;
+    const w = parseFloat(g.querySelector("text")?.textContent);
+    const item = { w: Number.isFinite(w) ? w : 1, e: edgeEls.length };
+    edgeEls.push(g);
+    adj.get(u).push({ to: v, ...item });
+    if (!directed && u !== v) adj.get(v).push({ to: u, ...item });
+  }
+  return { svg, names, adj, nodeEls, edgeEls };
+}
+
+/** Splits an svg edge title like "a->b", "a--b" or "a:port->b" into [tail, head, directed]. */
+function splitEdgeTitle(title, nodes) {
+  const node = (s) => {
+    for (let i = s.length; i > 0; i = s.lastIndexOf(":", i - 1)) if (nodes.has(s.slice(0, i))) return s.slice(0, i);
+    return null;
+  };
+  for (const sep of ["->", "--"]) {
+    for (let i = title.indexOf(sep); i >= 0; i = title.indexOf(sep, i + 1)) {
+      const u = node(title.slice(0, i)), v = node(title.slice(i + 2));
+      if (u != null && v != null) return [u, v, sep === "->"];
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- algorithms
+// Each algorithm returns a list of snapshots {nodes, edges, dist, msg, panels}.
+function recorder() {
+  const R = { nodes: {}, edges: {}, dist: {}, steps: [] };
+  R.node = (n, s) => { R.nodes[n] = s; };
+  R.edge = (e, s) => { if (e != null) R.edges[e] = s; };
+  R.snap = (msg, panels) => R.steps.push({ nodes: { ...R.nodes }, edges: { ...R.edges }, dist: { ...R.dist }, msg, panels });
+  R.markPath = (pathNodes, pathEdges) => {
+    pathNodes.forEach((n) => R.node(n, "path"));
+    pathEdges.forEach((e) => R.edge(e, "path"));
+  };
+  return R;
+}
+const chips = (arr, f = (x) => ({ text: x })) => arr.map(f);
+
+/** Recursive DFS, like find_path / dfs in the course. */
+function runDfs(G, start, end) {
+  const R = recorder(), visited = new Set(), seq = [], stack = [], estack = [];
+  const panels = () => [
+    { label: t("callstack"), items: chips(stack, (n, i) => ({ text: n, top: i === stack.length - 1 })) },
+    { label: t("seq"), items: chips(seq) },
+  ];
+  R.node(start, "frontier");
+  R.snap(t("start", start), panels());
+  function go(node, via) {
+    stack.push(node); estack.push(via);
+    R.edge(via, "tree");
+    if (end != null && node === end) {
+      R.markPath(stack, estack.filter((e) => e != null));
+      R.snap(t("found", end, arrow(stack)), panels());
+      return true;
+    }
+    visited.add(node); seq.push(node);
+    R.node(node, "current");
+    R.snap(t("dfsVisit", node), panels());
+    for (const { to, e } of G.adj.get(node)) {
+      const prev = R.edges[e];
+      R.edge(e, "active");
+      if (visited.has(to)) {
+        R.snap(t("dfsSeen", node, to), panels());
+        R.edge(e, prev || "reject");
+        continue;
+      }
+      R.snap(t("dfsDescend", node, to), panels());
+      R.node(node, "frontier");
+      if (go(to, e)) return true;
+    }
+    R.node(node, "visited");
+    stack.pop(); estack.pop();
+    const parent = stack.at(-1);
+    if (parent != null) R.node(parent, "current");
+    R.snap(parent != null ? t("dfsReturn", node, parent) : t("dfsLast", node), panels());
+    return false;
+  }
+  if (!go(start, null)) {
+    R.snap(end != null ? t("notFound", start, end) : t("done", arrow(seq)), panels());
+  }
+  return R.steps;
+}
+
+/** BFS with a FIFO candidates list, like bfs / find_path_bfs in the course. */
+function runBfs(G, start, end) {
+  const R = recorder(), visited = new Set(), seq = [], parents = new Map();
+  const candidates = [{ n: start, p: null, e: null }];
+  const panels = () => [
+    { label: t("queue"), items: chips(candidates, (c, i) => ({ text: c.n, dim: visited.has(c.n), top: i === 0 })) },
+    { label: t("seq"), items: chips(seq) },
+  ];
+  R.node(start, "frontier");
+  R.snap(t("start", start), panels());
+  let current = null;
+  while (candidates.length) {
+    if (current != null) R.node(current, "visited");
+    const c = candidates.shift();
+    if (visited.has(c.n)) {
+      current = null;
+      R.snap(t("bfsSkip", c.n), panels());
+      continue;
+    }
+    current = c.n;
+    visited.add(c.n); seq.push(c.n); parents.set(c.n, c);
+    R.node(c.n, "current");
+    R.edge(c.e, "tree");
+    R.snap(t("bfsVisit", c.n), panels());
+    if (end != null && c.n === end) {
+      const pn = [], pe = [];
+      for (let x = parents.get(end); x; x = x.p == null ? null : parents.get(x.p)) {
+        pn.unshift(x.n);
+        if (x.e != null) pe.push(x.e);
+      }
+      R.markPath(pn, pe);
+      R.snap(t("found", end, arrow(pn)), panels());
+      return R.steps;
+    }
+    const added = [], flashed = [];
+    for (const { to, e } of G.adj.get(c.n)) {
+      if (visited.has(to)) continue;
+      candidates.push({ n: to, p: c.n, e });
+      added.push(to);
+      if (R.nodes[to] !== "frontier") R.node(to, "frontier");
+      flashed.push([e, R.edges[e]]);
+      R.edge(e, "active");
+    }
+    R.snap(added.length ? t("bfsPush", c.n, added.join(", ")) : t("bfsNone", c.n), panels());
+    flashed.forEach(([e, prev]) => { if (prev) R.edge(e, prev); else delete R.edges[e]; });
+  }
+  if (current != null) R.node(current, "visited");
+  R.snap(end != null ? t("notFound", start, end) : t("done", arrow(seq)), panels());
+  return R.steps;
+}
+
+/** Dijkstra with a priority queue and lazy deletion, like shortest_path in the course. */
+function runDijkstra(G, start, end) {
+  const R = recorder(), dist = R.dist, parents = new Map(), seq = [];
+  let pq = [[0, start]];
+  const cmp = (a, b) => a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+  const panels = () => [
+    { label: t("pq"), items: chips(pq, ([d, n], i) => ({ text: `(${d}, ${n})`, dim: d > dist[n], top: i === 0 })) },
+    { label: t("seq"), items: chips(seq) },
+  ];
+  dist[start] = 0;
+  R.node(start, "frontier");
+  R.snap(t("start", start), panels());
+  let current = null;
+  while (pq.length) {
+    if (current != null) R.node(current, "visited");
+    current = null;
+    const [d, n] = pq.shift();
+    if (d > dist[n]) {
+      R.snap(t("dijStale", n, d), panels());
+      continue;
+    }
+    current = n; seq.push(n);
+    R.node(n, "current");
+    R.snap(t("dijVisit", n, d), panels());
+    if (n === end) {
+      const pn = [end], pe = [];
+      for (let x = end; parents.has(x); x = parents.get(x).p) { pe.push(parents.get(x).e); pn.unshift(parents.get(x).p); }
+      R.markPath(pn, pe);
+      R.snap(t("foundLen", end, arrow(pn), d), panels());
+      return R.steps;
+    }
+    for (const { to, w, e } of G.adj.get(n)) {
+      const nd = d + w, old = dist[to] ?? Infinity;
+      const prev = R.edges[e];
+      R.edge(e, "active");
+      const oldText = old === Infinity ? "∞" : old;
+      if (old <= nd) {
+        R.snap(t("dijWorse", n, to, d, w, nd, oldText), panels());
+        R.edge(e, prev || "reject");
+        continue;
+      }
+      if (parents.has(to)) R.edge(parents.get(to).e, "reject");
+      dist[to] = nd;
+      parents.set(to, { p: n, e });
+      pq.push([nd, to]); pq.sort(cmp);
+      R.node(to, "frontier");
+      R.snap(t("dijBetter", n, to, d, w, nd, oldText), panels());
+      R.edge(e, "tree");
+    }
+  }
+  if (current != null) R.node(current, "visited");
+  R.snap(end != null ? t("notFound", start, end) : t("done", arrow(seq)), panels());
+  return R.steps;
+}
+
+const ALGOS = { dfs: runDfs, bfs: runBfs, dijkstra: runDijkstra };
+
+// ---------------------------------------------------------------- viewer
+const ICON = {
+  first: "M18.41 16.59 13.82 12l4.59-4.59L17 6l-6 6 6 6zM6 6h2v12H6z",
+  prev: "M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z",
+  play: "M8 5v14l11-7z",
+  pause: "M6 19h4V5H6zm8-14v14h4V5z",
+  next: "M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z",
+  last: "M5.59 7.41 10.18 12l-4.59 4.59L7 18l6-6-6-6zM16 6h2v12h-2z",
+  edit: "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3z",
+};
+const svgIcon = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+
+let activeViewer = null;
+
+async function mountViewer(root, cfg) {
+  if (activeViewer) activeViewer.destroy();
+  root.innerHTML = "";
+  root.className = "viewer";
+  const fail = (e) => { root.innerHTML = `<div class="msg err"></div>`; root.firstChild.textContent = String(e.message || e); };
+
+  let G;
+  try { G = await layout(toDot(cfg.graph)); } catch (e) { fail(e); return null; }
+  const start = cfg.start || G.names[0];
+  const end = cfg.end || null;
+  if (!G.adj.has(start)) { fail(t("noStart", start)); return G; }
+  if (end != null && !G.adj.has(end)) { fail(t("noEnd", end)); return G; }
+  const algo = ALGOS[cfg.algo] ? cfg.algo : "dfs";
+  const steps = ALGOS[algo](G, start, end);
+
+  root.innerHTML = `
+    <div class="bar"><span class="algo"></span>${cfg.editLink ? `<a target="_blank" rel="noopener" title="${t("edit")}" aria-label="${t("edit")}">${svgIcon(ICON.edit)}</a>` : ""}</div>
+    <div class="stage"></div>
+    <div class="msg" aria-live="polite"></div>
+    <div class="panels"></div>
+    ${cfg.legend ? `<div class="legend"><span class="l-frontier">${t("frontier")}</span><span class="l-current">${t("current")}</span><span class="l-visited">${t("visited")}</span><span class="l-path">${t("path")}</span></div>` : ""}
+    <div class="controls">
+      <button data-a="first" title="${t("first")}">${svgIcon(ICON.first)}</button>
+      <button data-a="prev" title="${t("prev")}">${svgIcon(ICON.prev)}</button>
+      <button data-a="play" title="${t("play")}">${svgIcon(ICON.play)}</button>
+      <button data-a="next" title="${t("next")}">${svgIcon(ICON.next)}</button>
+      <button data-a="last" title="${t("last")}">${svgIcon(ICON.last)}</button>
+      <input type="range" min="0" value="0" aria-label="step">
+      <span class="counter"></span>
+    </div>`;
+  const $ = (s) => root.querySelector(s);
+  const stage = $(".stage"), msg = $(".msg"), panelsEl = $(".panels"), range = $("input"), counter = $(".counter");
+  const playBtn = $('[data-a="play"]');
+  $(".algo").textContent = `${t(algo)} · ${start}${end != null ? " → " + end : ""}`;
+  if (cfg.editLink) {
+    const u = new URL(location.href);
+    u.searchParams.set("edit", "1");
+    $(".bar a").href = u.toString();
+  }
+
+  // Attach the graphviz svg, scaled to fit but never blown up beyond 1.6x.
+  const svg = G.svg;
+  const w = parseFloat(svg.getAttribute("width")), h = parseFloat(svg.getAttribute("height"));
+  svg.removeAttribute("width"); svg.removeAttribute("height");
+  svg.style.maxWidth = `${w * 1.6}px`; svg.style.maxHeight = `${h * 1.6}px`;
+  stage.append(svg);
+
+  const { nodeEls, edgeEls } = G;
+  for (const g of [...nodeEls.values(), ...edgeEls]) g.dataset.base = g.getAttribute("class");
+  // Distance badges for Dijkstra, at the top right of each node.
+  const badges = new Map();
+  if (cfg.algo === "dijkstra") {
+    for (const [name, g] of nodeEls) {
+      const b = g.getBBox();
+      const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      txt.setAttribute("class", "dist");
+      txt.setAttribute("x", b.x + b.width - 2);
+      txt.setAttribute("y", b.y + 1);
+      g.append(txt);
+      badges.set(name, txt);
+    }
+    // Make room for badges sticking out at the top and right edges.
+    const vb = svg.viewBox.baseVal;
+    svg.setAttribute("viewBox", `${vb.x} ${vb.y - 12} ${vb.width + 28} ${vb.height + 12}`);
+  }
+
+  let idx = 0, timer = null;
+  range.max = steps.length - 1;
+
+  function show(i) {
+    idx = Math.max(0, Math.min(steps.length - 1, i));
+    const s = steps[idx];
+    for (const [n, g] of nodeEls) {
+      let c = g.dataset.base;
+      if (s.nodes[n]) c += " s-" + s.nodes[n];
+      if (n === start) c += " is-start";
+      if (n === end) c += " is-end";
+      g.setAttribute("class", c);
+    }
+    for (const [e, g] of edgeEls.entries()) g.setAttribute("class", g.dataset.base + (s.edges[e] ? " e-" + s.edges[e] : ""));
+    for (const [n, txt] of badges) txt.textContent = s.dist[n] ?? "∞";
+    msg.textContent = s.msg;
+    panelsEl.innerHTML = "";
+    for (const p of s.panels) {
+      const row = document.createElement("div");
+      row.className = "panel";
+      const label = document.createElement("b");
+      label.textContent = p.label;
+      row.append(label);
+      if (!p.items.length) { const e = document.createElement("span"); e.className = "empty"; e.textContent = "—"; row.append(e); }
+      for (const it of p.items) {
+        const c = document.createElement("span");
+        c.className = "chip" + (it.dim ? " dim" : "") + (it.top ? " top" : "");
+        c.textContent = it.text;
+        row.append(c);
+      }
+      panelsEl.append(row);
+    }
+    range.value = idx;
+    counter.textContent = `${idx + 1} / ${steps.length}`;
+  }
+  function stop() { clearInterval(timer); timer = null; playBtn.innerHTML = svgIcon(ICON.play); }
+  function play() {
+    if (idx >= steps.length - 1) show(0);
+    playBtn.innerHTML = svgIcon(ICON.pause);
+    timer = setInterval(() => { if (idx >= steps.length - 1) stop(); else show(idx + 1); }, cfg.speed);
+  }
+  const act = {
+    first: () => { stop(); show(0); }, prev: () => { stop(); show(idx - 1); },
+    next: () => { stop(); show(idx + 1); }, last: () => { stop(); show(steps.length - 1); },
+    play: () => (timer ? stop() : play()),
+  };
+  root.querySelector(".controls").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (b) act[b.dataset.a]();
+  });
+  range.addEventListener("input", () => { stop(); show(+range.value); });
+  const onKey = (e) => {
+    if (e.target.closest("textarea, input:not([type=range]), select")) return;
+    if (e.key === "ArrowRight") act.next();
+    else if (e.key === "ArrowLeft") act.prev();
+    else if (e.key === " ") { e.preventDefault(); act.play(); }
+    else return;
+  };
+  addEventListener("keydown", onKey);
+  activeViewer = { destroy() { stop(); removeEventListener("keydown", onKey); } };
+
+  show(0);
+  if (cfg.autoplay) play();
+  return G;
+}
+
+function configFrom(params, graph) {
+  return {
+    graph,
+    algo: params.get("algo") || "dfs",
+    start: params.get("start") || "",
+    end: params.get("end") || "",
+    speed: Math.max(100, +params.get("speed") || 900),
+    autoplay: params.get("autoplay") === "1",
+    legend: params.get("legend") !== "0",
+    editLink: params.get("editlink") !== "0",
+  };
+}
+
+// ---------------------------------------------------------------- editor
+// Very approximate rail travel times in hours between European capitals.
+const EXAMPLE = `graph {
+  rankdir=LR
+  London -- Paris [label=2.5]
+  London -- Brussels [label=2]
+  Paris -- Brussels [label=1.5]
+  Brussels -- Amsterdam [label=2]
+  Paris -- Bern [label=4]
+  Paris -- Berlin [label=8]
+  Amsterdam -- Berlin [label=6]
+  Berlin -- Prague [label=4.5]
+  Berlin -- Vienna [label=8]
+  Prague -- Vienna [label=4]
+  Bern -- Vienna [label=9]
+}`;
+
+// Parameters the editor has no field for, but carries over from an edit=1 link.
+const PASSTHROUGH = ["accent", "bg", "legend", "autoplay", "editlink"];
+
+function mountEditor(initialGraph) {
+  document.body.innerHTML = `
+  <div class="editor">
+    <form onsubmit="return false">
+      <h1>Graph Algorithm Player</h1>
+      <label>${t("eGraph")}<textarea id="gsrc" spellcheck="false"></textarea></label>
+      <div class="row">
+        <label>${t("eAlgo")}<select id="algo">${Object.keys(ALGOS).map((a) => `<option value="${a}">${t(a)}</option>`).join("")}</select></label>
+        <label>${t("eStart")}<select id="start"></select></label>
+        <label>${t("eEnd")}<select id="end"></select></label>
+      </div>
+      <div class="row">
+        <label>${t("eTheme")}<select id="theme"><option>auto</option><option>light</option><option>dark</option></select></label>
+        <label>${t("eLang")}<select id="lang"><option value="">${t("eBrowser")}</option><option>de</option><option>en</option></select></label>
+        <label>${t("eSpeed")}<input id="speed" type="number" min="100" step="100" value="900"></label>
+        <label>${t("eHeight")}<input id="height" type="number" min="200" step="20" value="460"></label>
+      </div>
+      <div class="row" style="flex:0">
+        <button type="button" id="copyUrl">${t("copyUrl")}</button>
+        <button type="button" id="copy">${t("copyIframe")}</button>
+        <button type="button" id="open">${t("open")}</button>
+      </div>
+    </form>
+    <div class="preview" id="preview"></div>
+  </div>`;
+  const $ = (id) => document.getElementById(id);
+  $("gsrc").value = initialGraph || EXAMPLE;
+  $("algo").value = ALGOS[P.get("algo")] ? P.get("algo") : "dfs";
+  $("theme").value = P.get("theme") || "auto";
+  $("lang").value = MSG[P.get("lang")] ? P.get("lang") : "";
+  if (P.get("speed")) $("speed").value = P.get("speed");
+  const wanted = { start: P.get("start") || "", end: P.get("end") || "" };
+
+  const fillSelect = (sel, names, value, allowNone) => {
+    sel.innerHTML = (allowNone ? `<option value="">—</option>` : "") + names.map(() => `<option></option>`).join("");
+    [...sel.options].slice(allowNone ? 1 : 0).forEach((o, i) => { o.value = o.textContent = names[i]; });
+    sel.value = names.includes(value) ? value : (allowNone ? "" : names[0] || "");
+  };
+
+  function url() {
+    const q = new URLSearchParams();
+    q.set("graph", $("gsrc").value.trim());
+    q.set("algo", $("algo").value);
+    if ($("start").value) q.set("start", $("start").value);
+    if ($("end").value) q.set("end", $("end").value);
+    if ($("theme").value !== "auto") q.set("theme", $("theme").value);
+    if ($("lang").value) q.set("lang", $("lang").value);
+    if (+$("speed").value !== 900) q.set("speed", $("speed").value);
+    for (const k of PASSTHROUGH) if (P.has(k)) q.set(k, P.get(k));
+    return location.origin + location.pathname + "?" + q.toString().replace(/\+/g, "%20");
+  }
+  const snippet = () => {
+    const src = url().replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    return `<iframe src="${src}" width="100%" height="${$("height").value}" style="border:0" loading="lazy" title="Graph algorithm"></iframe>`;
+  };
+
+  let pending;
+  async function update() {
+    lang = pickLang($("lang").value);
+    applyTheme($("theme").value, P.get("accent"), P.get("bg"));
+    const cfg = { ...configFrom(new URLSearchParams(), $("gsrc").value), algo: $("algo").value,
+                  start: wanted.start, end: wanted.end, speed: Math.max(100, +$("speed").value || 900), editLink: false };
+    const G = await mountViewer($("preview"), cfg);
+    if (G && G.names) {
+      fillSelect($("start"), G.names, wanted.start, false);
+      fillSelect($("end"), G.names, wanted.end, true);
+      wanted.start = $("start").value;
+    }
+  }
+  const schedule = () => { clearTimeout(pending); pending = setTimeout(update, 300); };
+  $("gsrc").addEventListener("input", schedule);
+  ["algo", "theme", "lang", "speed"].forEach((id) => $(id).addEventListener("change", update));
+  $("start").addEventListener("change", () => { wanted.start = $("start").value; update(); });
+  $("end").addEventListener("change", () => { wanted.end = $("end").value; update(); });
+  const copy = (btn, text) => navigator.clipboard.writeText(text).then(() => {
+    const label = btn.textContent; btn.textContent = t("copied"); setTimeout(() => { btn.textContent = label; }, 1200);
+  });
+  $("copyUrl").addEventListener("click", (e) => copy(e.currentTarget, url()));
+  $("copy").addEventListener("click", (e) => copy(e.currentTarget, snippet()));
+  $("open").addEventListener("click", () => window.open(url(), "_blank"));
+  update();
+}
+
+// ---------------------------------------------------------------- main
+(async function main() {
+  applyTheme(P.get("theme"), P.get("accent"), P.get("bg"));
+  let graph = P.get("graph") || P.get("dot");
+  if (!graph && P.get("src")) {
+    try { graph = await (await fetch(P.get("src"))).text(); }
+    catch (e) { document.body.textContent = `Could not load ${P.get("src")}: ${e}`; return; }
+  }
+  if (!graph || P.get("edit") === "1") { mountEditor(graph); return; }
+  const root = document.createElement("div");
+  document.body.append(root);
+  mountViewer(root, configFrom(P, graph));
+})();
+</script>
+</body>
+</html>

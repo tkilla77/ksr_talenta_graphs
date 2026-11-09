@@ -32,7 +32,7 @@ is ignored.
 
 ### Source
 
-The data ist parsed from [GTFS](https://opentransportdata.swiss/de/cookbook/gtfs) data available from https://opentransportdata.swiss/de/group/timetables-gtfs
+The data ist parsed from [GTFS](https://opentransportdata.swiss/de/cookbook/gtfs) data available from https://data.opentransportdata.swiss/dataset/?groups=timetables&res_format=ZIP
 
 ```py
 sbb = read_gtfs("fahrplan/gtfs_fp2022_2022-05-11_04-15")
